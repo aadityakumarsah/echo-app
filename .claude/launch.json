@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "clario-frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "/Users/aadityasah/Desktop/clario/clario-frontend"],
+      "port": 5173,
+      "autoPort": true
+    }
+  ]
+}
