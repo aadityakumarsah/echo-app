@@ -1,0 +1,29 @@
+# Clario Backend Requirements
+# Python 3.11+
+
+# Web Framework
+fastapi[standard]>=0.135.2
+uvicorn[standard]>=0.24.0
+
+# AI/LLM
+google-genai>=1.69.0
+langchain-core>=0.3.0
+langchain-google-genai>=2.0.0
+
+# Auth
+PyJWT>=2.8.0
+email-validator>=2.1.0
+
+# Utilities
+python-dotenv>=1.2.2
+python-multipart>=0.0.22
+
+loguru>=0.7.3
+
+# Payments
+stripe>=7.0.0
+httpx>=0.28.0
+
+# Database — Supabase (optional: falls back to SQLite if env vars not set)
+# 2.15+ supports httpx>=0.28 (required by google-genai 1.69+)
+supabase>=2.15.0

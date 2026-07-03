@@ -1,0 +1,31 @@
+Garden Animation Assets — License & Source Documentation
+========================================================
+Downloaded: July 2, 2026
+License: Lottie Simple License (free for personal and commercial use)
+Source: LottieFiles.com (https://lottiefiles.com)
+
+All Lottie JSON animations below are sourced from LottieFiles and used under
+the Lottie Simple License, which permits free use in commercial applications
+without attribution (though attribution is appreciated).
+
+Lottie Simple License: https://lottiefiles.com/page/license
+
+Files:
+------
+nc-tree-wind.json      — Tree swaying in wind (LottieFiles CDN, Lottie Simple License)
+nc-teapot.json         — Teapot animation (LottieFiles CDN, Lottie Simple License)
+nc-honey-bee.json      — Bee flying animation (LottieFiles CDN, Lottie Simple License)
+nc-frog.json           — Frog animation (LottieFiles CDN, Lottie Simple License)
+nc-flower-grow-a.json  — Flower/plant growing (LottieFiles, Lottie Simple License)
+nc-flower-grow-b.json  — Flower bloom animation (LottieFiles CDN, Lottie Simple License)
+nc-autumn.json         — Autumn leaves (retained from original project, no third-party claim identified)
+
+Image Assets:
+-------------
+nc-garden-bg.png               — Garden background (original project asset)
+nc-floral/images/image_2.png   — Berry sprig illustration (original project asset)
+nc-floral/images/image_3.png   — Floral ornament illustration (original project asset)
+
+Note: Image assets (PNG files) were part of the original project. If replacing,
+use assets from Pixabay.com (Pixabay License — free for commercial use, no
+attribution required) or create original illustrations.
