@@ -16,12 +16,11 @@
  *   day 90 → frog
  *
  * The tree is always shown as the base garden anchor (echo default).
- * Lottie is gated — if native module not registered, elements simply vanish.
  *
  * DEV: pass dayCount={65} to see a rich day-65 garden.
  */
 import React, { useEffect } from "react";
-import { Image, ImageBackground, Platform, StyleSheet, UIManager, View } from "react-native";
+import { Image, ImageBackground, Platform, StyleSheet, View } from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -31,11 +30,10 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { NcFlowerSpot } from "./NcFlowerSpot";
-import { ncFrogLottieSource } from "./ncFrogSource";
 
 // ─── DEV override ─────────────────────────────────────────────────────────────
 // Set to a number to preview that day's garden. Set to null for production.
-const DEV_DAY: number | null = 65;
+const DEV_DAY: number | null = null;
 
 // ─── Lottie gate ──────────────────────────────────────────────────────────────
 let LottieView: React.ComponentType<any> | null = null;
@@ -43,17 +41,10 @@ try {
   LottieView = require("lottie-react-native").default ?? require("lottie-react-native");
 } catch {}
 
-const LOTTIE_OK =
-  LottieView != null &&
-  !!(
-    (UIManager as any).getViewManagerConfig?.("LottieAnimationView") ||
-    (UIManager as any).hasViewManagerConfig?.("LottieAnimationView")
-  );
-
 function SafeLottie({ source, style, autoPlay = true, loop = true }: {
   source: any; style: any; autoPlay?: boolean; loop?: boolean;
 }) {
-  if (!LOTTIE_OK || !LottieView) return null;
+  if (!LottieView) return null;
   return (
     <LottieView
       source={source}
@@ -72,8 +63,9 @@ const TREE_WIND   = require("../../assets/nc-tree-wind.json");
 const TEAPOT      = require("../../assets/nc-teapot.json");
 const HONEY_BEE   = require("../../assets/nc-honey-bee.json");
 const AUTUMN      = require("../../assets/nc-autumn.json");
-const FLORAL_IMG  = require("../../assets/nc-floral/images/image_3.png");
-const BERRY_IMG   = require("../../assets/nc-floral/images/image_2.png");
+const FROG        = require("../../assets/nc-frog.json");
+const FLORAL_IMG  = require("../../assets/nc-floral.png");
+const BERRY_IMG   = require("../../assets/nc-berry.png");
 
 // ─── Flower slots: one per clario daily step ──────────────────────────────────
 const FLOWER_SLOTS = [
@@ -139,11 +131,9 @@ export function GardenScene({ completedKeys, dayCount: dayCountProp = 1, compact
   const hasBerry     = dayCount >= 45;
   const hasAutumn2   = dayCount >= 80;
 
-  const bgSource = Image.resolveAssetSource(GARDEN_BG);
-
   return (
     <ImageBackground
-      source={bgSource}
+      source={GARDEN_BG}
       style={[styles.card, { height }]}
       imageStyle={styles.bgImage}
       resizeMode="cover"
@@ -240,7 +230,7 @@ export function GardenScene({ completedKeys, dayCount: dayCountProp = 1, compact
           height: height * 0.30,
           zIndex: 23,
         }}>
-          <SafeLottie source={ncFrogLottieSource} style={{ width: "100%", height: "100%" }} />
+          <SafeLottie source={FROG} style={{ width: "100%", height: "100%" }} />
         </View>
       )}
 

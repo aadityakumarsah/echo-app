@@ -243,6 +243,18 @@ web: gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app
 **Frontend:**
 Deploy to separate platform (Vercel, Netlify, or S3).
 
+### Option 6: Cloudflare Pages (Highly Recommended for Frontend SPA)
+
+**Frontend:**
+For a comprehensive step-by-step setup, see `CLOUDFLARE_PAGES_DEPLOYMENT.md` in the project root.
+1. Connect GitHub repository to Cloudflare Pages.
+2. Configure Settings:
+   - **Root directory:** `clario-mobile`
+   - **Build command:** `yarn build:web` (or `npm run build:web`)
+   - **Build output directory:** `dist`
+3. Configure environment variables like `EXPO_PUBLIC_API_BASE`.
+4. Deploy. (Routing fallbacks are managed automatically via the `_redirects` file we created for you).
+
 ---
 
 ## Security Checklist

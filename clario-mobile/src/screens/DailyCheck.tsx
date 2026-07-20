@@ -295,7 +295,11 @@ export default function DailyCheck() {
           onPress={() => router.push('/garden')}
           style={styles.gardenCard}
         >
-          <GardenScene completedKeys={completedKeysList} compact={false} />
+          <GardenScene
+            completedKeys={completedKeysList}
+            dayCount={displayStreak}
+            compact={false}
+          />
           {/* Row 1: streak + week dots */}
           <View style={styles.trackerRow}>
             {/* Streak badge */}

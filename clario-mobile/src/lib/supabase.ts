@@ -23,7 +23,6 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     persistSession: true,
     detectSessionInUrl: false,
   },
-  // Disable realtime on web to avoid the Node.js WebSocket error during SSR/bundling.
   // Realtime is not used in this app; auth and data queries use the REST API.
   realtime: { params: { eventsPerSecond: -1 } },
   global: {

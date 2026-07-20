@@ -165,7 +165,11 @@ export default function Garden() {
         {/* Main garden scene */}
         {!loading && (
           <View style={[styles.gardenCard, cardShadow]}>
-            <GardenScene completedKeys={todayKeys} compact={false} />
+            <GardenScene
+              completedKeys={todayKeys}
+              dayCount={streak}
+              compact={false}
+            />
             <View style={styles.gardenFooter}>
               <Text style={styles.gardenFooterText}>
                 {todayKeys.length === 0 && 'Start today to see your garden bloom.'}

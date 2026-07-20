@@ -109,6 +109,13 @@ VITE_BACKEND_BASE_URL=your-api-domain
 2. Set VITE_BACKEND_BASE_URL
 3. Deploy
 
+### Cloudflare Pages (Frontend Only - Recommended)
+1. Connect GitHub repo
+2. Set **Root directory** to `clario-mobile`
+3. Set **Build command** to `yarn build:web` (or `npm run build:web`)
+4. Set **Build output directory** to `dist`
+5. Deploy (supports full SPA custom routes/redirects natively out of the box via we configured `_redirects` file)
+
 ### AWS EC2
 1. Launch Ubuntu instance
 2. Install Python 3.11 & Node.js

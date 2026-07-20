@@ -33,7 +33,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors, fonts, cardShadow } from '../lib/theme';
 import { SoftGradient } from '../components/SoftGradient';
 import SessionReportModal from './SessionReportModal';
-import VoiceRecordingOverlay from './VoiceRecordingOverlay';
+import VoiceRecordingOverlay, { isNativeAudioAvailable } from './VoiceRecordingOverlay';
 import { Image } from 'expo-image';
 import { avatarUrl } from '../lib/cloudinary';
 
@@ -204,6 +204,13 @@ export default function Dashboard() {
 
   const startRecording = async (persona = selectedPersona, voice = selectedVoice, lang = selectedLang) => {
     if (starting) return;
+    if (!isNativeAudioAvailable()) {
+      Alert.alert(
+        'Install the Clario development build',
+        'Voice reflection needs Clario’s native microphone module. Expo Go cannot run it. Install the development APK, then open this project with the development client.'
+      );
+      return;
+    }
     setShowPersonaSheet(false);
     setStarting(true);
     setStartHint('checking connection…');

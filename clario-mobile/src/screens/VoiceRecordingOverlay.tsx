@@ -20,13 +20,9 @@ import {
   ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Constants from 'expo-constants';
 import { Mic, MicOff, PhoneOff } from 'lucide-react-native';
-import {
-  AudioContext,
-  AudioManager,
-  AudioRecorder,
-  type AudioBuffer as RNAudioBuffer,
-} from 'react-native-audio-api';
+import type { AudioBuffer as RNAudioBuffer, AudioContext as RNAudioContext, AudioRecorder as RNAudioRecorder } from 'react-native-audio-api';
 import { colors, fonts } from '../lib/theme';
 
 const { width } = Dimensions.get('window');
@@ -41,6 +37,45 @@ const INPUT_GAIN = 2.4;
 // length is typically 0.04-0.10 even with defaultToSpeaker, so this prevents echo
 // feedback while still allowing deliberate interruption.
 const BARGE_IN_RMS = 0.28;
+
+type NativeAudioApi = typeof import('react-native-audio-api');
+
+// Expo Go does not ship third-party native modules. Load this module lazily so
+// opening the dashboard remains safe there and in any old development client.
+let nativeAudioApi: NativeAudioApi | null | undefined;
+
+function getNativeAudioApi(): NativeAudioApi | null {
+  if (nativeAudioApi !== undefined) return nativeAudioApi;
+
+  // Expo Go (the store client) cannot contain react-native-audio-api's native
+  // Android/iOS code. Do not even attempt `require` there: the module throws
+  // while initialising, which Expo Go reports as a red error screen even if a
+  // surrounding try/catch catches it. Development, preview and production
+  // builds have the native module linked by EAS and continue through below.
+  if (Constants.appOwnership === 'expo' || Constants.executionEnvironment === 'storeClient') {
+    nativeAudioApi = null;
+    return nativeAudioApi;
+  }
+
+  try {
+    nativeAudioApi = require('react-native-audio-api') as NativeAudioApi;
+  } catch {
+    nativeAudioApi = null;
+  }
+  return nativeAudioApi;
+}
+
+const nativeAudioUnavailableMessage =
+  'Voice reflections need an EAS-built Clario app. Expo Go cannot load the native microphone module. Install the latest Clario APK, then try again.';
+
+function readableError(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message.trim()) return `${fallback}: ${error.message}`;
+  return fallback;
+}
+
+export function isNativeAudioAvailable(): boolean {
+  return getNativeAudioApi() !== null;
+}
 
 // ─── audio helpers ─────────────────────────────────────────────────────────────
 
@@ -116,8 +151,8 @@ export default function VoiceRecordingOverlay({
 
   // Audio / WS refs
   const wsRef             = useRef<WebSocket | null>(null);
-  const recorderRef       = useRef<AudioRecorder | null>(null);
-  const playbackCtxRef    = useRef<AudioContext | null>(null);
+  const recorderRef       = useRef<RNAudioRecorder | null>(null);
+  const playbackCtxRef    = useRef<RNAudioContext | null>(null);
   const nextStartTimeRef  = useRef(0);
   const mutedRef          = useRef(muted);
   const streamingRef      = useRef(false);
@@ -193,6 +228,7 @@ export default function VoiceRecordingOverlay({
     recorderRef.current = null;
     if (recorder) {
       try { recorder.clearOnAudioReady(); } catch {}
+      try { recorder.clearOnError(); } catch {}
       try { recorder.stop(); } catch {}
     }
 
@@ -201,67 +237,98 @@ export default function VoiceRecordingOverlay({
     if (ctx) void ctx.close().catch(() => {});
 
     nextStartTimeRef.current = 0;
-    try { void AudioManager.setAudioSessionActivity(false); } catch {}
+    try { void getNativeAudioApi()?.AudioManager.setAudioSessionActivity(false); } catch {}
   }, [clearSpeakingTimers]);
 
   // ── native audio start ────────────────────────────────────────────────────
   const startNativeAudio = useCallback(async (): Promise<boolean> => {
-    AudioManager.setAudioSessionOptions({
-      iosCategory: 'playAndRecord',
-      iosMode: 'voiceChat',
-      iosOptions: ['defaultToSpeaker', 'allowBluetoothHFP'],
-    });
-
-    let permission: string;
-    try { permission = await AudioManager.requestRecordingPermissions(); }
-    catch { permission = 'Denied'; }
-
-    if (permission !== 'Granted') {
+    const audioApi = getNativeAudioApi();
+    if (!audioApi) {
       setAgentStatus('error');
-      setErrorMsg('Microphone permission denied — allow in Settings and try again.');
+      setErrorMsg(nativeAudioUnavailableMessage);
       return false;
     }
 
-    try { await AudioManager.setAudioSessionActivity(true); } catch {}
+    try {
+      const { AudioContext, AudioManager, AudioRecorder } = audioApi;
+      AudioManager.setAudioSessionOptions({
+        iosCategory: 'playAndRecord',
+        iosMode: 'voiceChat',
+        iosOptions: ['defaultToSpeaker', 'allowBluetoothHFP'],
+      });
 
-    const ctx = new AudioContext({ sampleRate: GEMINI_OUTPUT_RATE });
-    playbackCtxRef.current = ctx;
-    nextStartTimeRef.current = 0;
-    if (ctx.state === 'suspended') await ctx.resume().catch(() => {});
-
-    const recorder = new AudioRecorder();
-    recorderRef.current = recorder;
-
-    recorder.onAudioReady(
-      { sampleRate: GEMINI_INPUT_RATE, bufferLength: Math.round(GEMINI_INPUT_RATE * 0.1), channelCount: 1 },
-      ({ buffer }: { buffer: RNAudioBuffer }) => {
-        const ws = wsRef.current;
-        const channel = buffer.getChannelData(0);
-        const channelRms = rmsOf(channel);
-        const bargeIn = channelRms >= BARGE_IN_RMS;
-        const uplinkOk = streamingRef.current && !mutedRef.current && (!aiSpeakingRef.current || bargeIn);
-
-        if (!ws || ws.readyState !== WebSocket.OPEN || !uplinkOk) return;
-
-        const pcm16 = floatToPcm16(channel);
-        try { ws.send(pcm16.buffer as ArrayBuffer); } catch {}
+      const permission = await AudioManager.requestRecordingPermissions().catch(() => 'Denied');
+      if (permission !== 'Granted') {
+        setAgentStatus('error');
+        setErrorMsg('Microphone permission denied — allow Microphone access in Android Settings, then try again.');
+        return false;
       }
-    );
 
-    const result = recorder.start();
-    if ((result as any)?.status === 'error') {
+      try { await AudioManager.setAudioSessionActivity(true); } catch {}
+
+      const ctx = new AudioContext({ sampleRate: GEMINI_OUTPUT_RATE });
+      playbackCtxRef.current = ctx;
+      nextStartTimeRef.current = 0;
+      if (ctx.state === 'suspended') await ctx.resume().catch(() => {});
+
+      const recorder = new AudioRecorder();
+      recorderRef.current = recorder;
+      recorder.onError(({ message }) => {
+        if (recorderRef.current !== recorder) return;
+        streamingRef.current = false;
+        setAgentStatus('error');
+        setErrorMsg(message ? `Microphone error: ${message}` : 'Microphone recording stopped unexpectedly.');
+      });
+
+      recorder.onAudioReady(
+        { sampleRate: GEMINI_INPUT_RATE, bufferLength: Math.round(GEMINI_INPUT_RATE * 0.1), channelCount: 1 },
+        ({ buffer }: { buffer: RNAudioBuffer }) => {
+          try {
+            const ws = wsRef.current;
+            const channel = buffer.getChannelData(0);
+            const channelRms = rmsOf(channel);
+            const bargeIn = channelRms >= BARGE_IN_RMS;
+            const uplinkOk = streamingRef.current && !mutedRef.current && (!aiSpeakingRef.current || bargeIn);
+
+            if (!ws || ws.readyState !== WebSocket.OPEN || !uplinkOk) return;
+
+            const pcm16 = floatToPcm16(channel);
+            ws.send(pcm16.buffer as ArrayBuffer);
+          } catch (error) {
+            if (recorderRef.current !== recorder) return;
+            streamingRef.current = false;
+            setAgentStatus('error');
+            setErrorMsg(readableError(error, 'Could not send microphone audio'));
+          }
+        }
+      );
+
+      const result = recorder.start();
+      if ((result as any)?.status === 'error') {
+        stopNativeAudio();
+        setAgentStatus('error');
+        setErrorMsg("Couldn't start the microphone.");
+        return false;
+      }
+
+      streamingRef.current = true;
+      return true;
+    } catch (error) {
+      stopNativeAudio();
       setAgentStatus('error');
-      setErrorMsg("Couldn't start the microphone.");
+      setErrorMsg(readableError(error, 'Could not initialize microphone audio'));
       return false;
     }
-
-    streamingRef.current = true;
-    return true;
-  }, []);
+  }, [stopNativeAudio]);
 
   // ── WebSocket connect ─────────────────────────────────────────────────────
   const connect = useCallback(async () => {
     if (!sessionId || !token || connectLockRef.current) return;
+    if (!getNativeAudioApi()) {
+      setAgentStatus('error');
+      setErrorMsg(nativeAudioUnavailableMessage);
+      return;
+    }
     connectLockRef.current = true;
     setAgentStatus('connecting');
     setErrorMsg(null);
@@ -320,17 +387,29 @@ export default function VoiceRecordingOverlay({
     };
 
     ws.onerror = () => {
+      if (wsRef.current !== ws) return;
       connectLockRef.current = false;
       setAgentStatus('error');
-      setErrorMsg('WebSocket error — check your connection');
+      setErrorMsg('Voice connection failed — check your internet connection and try again.');
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
+      const wasActiveConnection = wsRef.current === ws;
       connectLockRef.current = false;
+      if (!wasActiveConnection) return;
+
       wsRef.current = null;
-      streamingRef.current = false;
+      stopNativeAudio();
+      if (event.code !== 1000) {
+        setAgentStatus('error');
+        setErrorMsg(
+          event.reason
+            ? `Voice connection closed: ${event.reason}`
+            : `Voice connection closed unexpectedly (code ${event.code || 'unknown'}).`
+        );
+      }
     };
-  }, [sessionId, token, persona, voice, lang, displayName, startNativeAudio, playPcmBytes]);
+  }, [sessionId, token, persona, voice, lang, displayName, startNativeAudio, stopNativeAudio, playPcmBytes]);
 
   // ── teardown ───────────────────────────────────────────────────────────────
   const teardown = useCallback(() => {
